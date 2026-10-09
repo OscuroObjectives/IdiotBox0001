@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
 
     <style>
-
         body {
             font-family: Arial, sans-serif;
             text-align: center;
@@ -23,11 +22,11 @@
             margin-bottom: 30px;
         }
 
-        /* ==================================================
-           WEIGHT DISPLAY
-           ================================================== */
+        /* ==============================
+           IDIOTBOX CONTROLLER
+           ============================== */
 
-        #weightBox {
+        #controllerBox {
             background: white;
             width: 300px;
             margin: 0 auto 30px auto;
@@ -36,59 +35,51 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
-        #weightLabel {
+        #controllerLabel {
             font-size: 18px;
             margin-bottom: 10px;
         }
 
-        #weight {
-            font-size: 48px;
-            font-weight: bold;
-        }
-
-        #weightUnit {
-            font-size: 22px;
-        }
-
-        #calibration {
+        #blockchainLabel {
             margin-top: 10px;
             font-size: 14px;
             color: #666;
         }
 
-        /* ==================================================
+        #walletStatus {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        /* ==============================
            BUTTONS
-           ================================================== */
+           ============================== */
 
         button {
             display: block;
             width: 250px;
             padding: 20px;
             margin: 20px auto;
-            font-size: 18px;
+            font-size: 24px;
             border: none;
             border-radius: 12px;
             cursor: pointer;
         }
 
-        #extend {
+        #lockButton {
             background: #4CAF50;
             color: white;
         }
 
-        #retract {
+        #unlockButton {
             background: #f44336;
             color: white;
         }
 
-        #stop {
-            background: #555;
-            color: white;
-        }
-
-        #tare {
+        #resetButton {
             background: #2196F3;
             color: white;
+            font-size: 16px;
         }
 
         button:disabled {
@@ -96,278 +87,295 @@
             cursor: not-allowed;
         }
 
-        /* ==================================================
+        /* ==============================
            STATUS
-           ================================================== */
+           ============================== */
 
         #status {
             margin-top: 30px;
             font-size: 18px;
             font-weight: bold;
         }
-
-        #scaleStatus {
-            margin-top: 10px;
-            font-size: 16px;
-        }
-
     </style>
 </head>
 
 <body>
-<body>
 
     <h1>IdiotBox™</h1>
 
-    <div id="weightBox">
-        <div id="weightLabel">IdiotBox Controller</div>
+    <div id="controllerBox">
+        <div id="controllerLabel">IdiotBox Controller</div>
 
-        <div id="calibration">
+        <div id="blockchainLabel">
             Blockchain Command Control
         </div>
 
-        <div id="scaleStatus">
+        <div id="walletStatus">
             ⚪ Wallet not connected
         </div>
     </div>
 
-    <button id="extend" onclick="authorizeAndSend('LOCK')">
+    <button id="lockButton" onclick="authorizeAndSend('LOCK')">
         LOCK
     </button>
 
-    <button id="retract" onclick="authorizeAndSend('UNLOCK')">
+    <button id="unlockButton" onclick="authorizeAndSend('UNLOCK')">
         UNLOCK
     </button>
 
-    <button id="tare" onclick="authorizeAndSend('RESET_IDIOTBOX_WIFI')">
+    <button id="resetButton" onclick="authorizeAndSend('RESET_IDIOTBOX_WIFI')">
         RESET_IDIOTBOX_WIFI
     </button>
 
     <div id="status">
-        Connecting...
+        Ready.
     </div>
 
-<script>
 
-// ======================================================
-// IDIOTBOX CONTRACT
-// ======================================================
+    <script>
 
-const contractAddress =
-    "0x4e9B433d69585D55E8765b27FF593a203c6968F2";
+        // ======================================================
+        // IDIOTBOX SMART CONTRACT
+        // ======================================================
 
-const contractABI = [
-    "function issueCommand(uint8 command) public",
-    "event CommandIssued(uint256 indexed commandId, uint8 command, address indexed issuedBy)"
-];
+        const contractAddress =
+            "0x4e9B433d69585D55E8765b27FF593a203c6968F2";
 
-// Solidity enum:
-// LOCK = 0
-// UNLOCK = 1
-// RESET_IDIOTBOX_WIFI = 2
+        const contractABI = [
+            "function issueCommand(uint8 command) public"
+        ];
 
 
-// ======================================================
-// STATUS
-// ======================================================
+        // ======================================================
+        // STATUS
+        // ======================================================
 
-function updateStatus(message) {
-    document.getElementById("status").innerText = message;
-}
-
-
-// ======================================================
-// META MASK + SOLIDITY
-// ======================================================
-
-async function authorizeAndSend(command) {
-
-    try {
-
-        // ----------------------------------------------
-        // MAKE SURE METAMASK EXISTS
-        // ----------------------------------------------
-
-        if (!window.ethereum) {
-
-            alert("MetaMask is not installed.");
-            return;
+        function updateStatus(message) {
+            document.getElementById("status").innerText = message;
         }
 
 
-        updateStatus(
-            "🦊 Opening MetaMask..."
-        );
+        // ======================================================
+        // SEND BLOCKCHAIN COMMAND
+        // ======================================================
+
+        async function authorizeAndSend(command) {
+
+            try {
+
+                // ------------------------------------------------
+                // CHECK METAMASK
+                // ------------------------------------------------
+
+                if (!window.ethereum) {
+
+                    updateStatus("❌ MetaMask is not installed.");
+
+                    alert("MetaMask is not installed.");
+
+                    return;
+                }
 
 
-        // ----------------------------------------------
-        // CONNECT TO METAMASK
-        // ----------------------------------------------
-
-        const provider =
-            new ethers.BrowserProvider(
-                window.ethereum
-            );
-
-        await provider.send(
-            "eth_requestAccounts",
-            []
-        );
+                updateStatus("🦊 Opening MetaMask...");
 
 
-        // ----------------------------------------------
-        // CHECK NETWORK
-        // ----------------------------------------------
+                // ------------------------------------------------
+                // CONNECT TO METAMASK
+                // ------------------------------------------------
 
-        const network =
-            await provider.getNetwork();
+                const provider =
+                    new ethers.BrowserProvider(
+                        window.ethereum
+                    );
 
-        // Sepolia chain ID = 11155111
-        if (network.chainId !== 11155111n) {
-
-            updateStatus(
-                "🔴 Switch MetaMask to Sepolia."
-            );
-
-            alert(
-                "Please switch MetaMask to the Sepolia Testnet."
-            );
-
-            return;
-        }
+                await provider.send(
+                    "eth_requestAccounts",
+                    []
+                );
 
 
-        // ----------------------------------------------
-        // GET SIGNER
-        // ----------------------------------------------
+                // ------------------------------------------------
+                // CHECK NETWORK
+                // ------------------------------------------------
 
-        const signer =
-            await provider.getSigner();
+                const network =
+                    await provider.getNetwork();
+
+                if (network.chainId !== 11155111n) {
+
+                    updateStatus(
+                        "🔴 Switch MetaMask to Sepolia."
+                    );
+
+                    alert(
+                        "Please switch MetaMask to the Sepolia Testnet."
+                    );
+
+                    return;
+                }
 
 
-        // ----------------------------------------------
-        // CREATE CONTRACT
-        // ----------------------------------------------
+                // ------------------------------------------------
+                // WALLET STATUS
+                // ------------------------------------------------
 
-        const contract =
-            new ethers.Contract(
-                contractAddress,
-                contractABI,
-                signer
-            );
+                const signer =
+                    await provider.getSigner();
+
+                const walletAddress =
+                    await signer.getAddress();
+
+                document.getElementById("walletStatus").innerText =
+                    "🟢 Wallet connected: " +
+                    walletAddress.substring(0, 6) +
+                    "..." +
+                    walletAddress.substring(walletAddress.length - 4);
 
 
-        // ----------------------------------------------
-        // RESET WARNING
-        // ----------------------------------------------
+                // ------------------------------------------------
+                // CREATE CONTRACT
+                // ------------------------------------------------
 
-        if (command === "RESET_IDIOTBOX_WIFI") {
+                const contract =
+                    new ethers.Contract(
+                        contractAddress,
+                        contractABI,
+                        signer
+                    );
 
-            const confirmed = confirm(
-                "RESET_IDIOTBOX_WIFI will erase the ESP32's saved Wi-Fi credentials and restart the IdiotBox.\n\nContinue?"
-            );
 
-            if (!confirmed) {
-                updateStatus("Reset cancelled.");
-                return;
+                // ------------------------------------------------
+                // RESET WARNING
+                // ------------------------------------------------
+
+                if (command === "RESET_IDIOTBOX_WIFI") {
+
+                    const confirmed = confirm(
+                        "RESET_IDIOTBOX_WIFI will erase the ESP32's saved Wi-Fi credentials and restart the IdiotBox.\n\nContinue?"
+                    );
+
+                    if (!confirmed) {
+
+                        updateStatus("Reset cancelled.");
+
+                        return;
+                    }
+                }
+
+
+                // ------------------------------------------------
+                // COMMAND NUMBER
+                // ------------------------------------------------
+
+                let commandNumber;
+
+                if (command === "LOCK") {
+
+                    commandNumber = 0;
+
+                }
+
+                else if (command === "UNLOCK") {
+
+                    commandNumber = 1;
+
+                }
+
+                else if (command === "RESET_IDIOTBOX_WIFI") {
+
+                    commandNumber = 2;
+
+                }
+
+                else {
+
+                    updateStatus("🔴 Unknown command.");
+
+                    return;
+                }
+
+
+                // ------------------------------------------------
+                // SEND TRANSACTION
+                // ------------------------------------------------
+
+                updateStatus(
+                    "🦊 Approve " +
+                    command +
+                    " in MetaMask..."
+                );
+
+                const transaction =
+                    await contract.issueCommand(
+                        commandNumber
+                    );
+
+
+                console.log(
+                    "Blockchain transaction:",
+                    transaction.hash
+                );
+
+
+                updateStatus(
+                    "⛓️ Waiting for blockchain confirmation..."
+                );
+
+
+                // ------------------------------------------------
+                // WAIT FOR CONFIRMATION
+                // ------------------------------------------------
+
+                await transaction.wait();
+
+
+                console.log(
+                    "Blockchain transaction confirmed."
+                );
+
+
+                updateStatus(
+                    "✅ " +
+                    command +
+                    " confirmed on Sepolia"
+                );
+
+            }
+
+
+            // ======================================================
+            // ERROR HANDLING
+            // ======================================================
+
+            catch (error) {
+
+                console.error(
+                    "Transaction error:",
+                    error
+                );
+
+                if (
+                    error.code === 4001 ||
+                    error.code === "ACTION_REJECTED"
+                ) {
+
+                    updateStatus(
+                        "❌ Transaction cancelled"
+                    );
+
+                }
+
+                else {
+
+                    updateStatus(
+                        "❌ Transaction failed"
+                    );
+                }
             }
         }
 
-
-        updateStatus(
-            "🦊 Approve " +
-            command +
-            " in MetaMask..."
-        );
-
-
-        // ----------------------------------------------
-        // CONVERT COMMAND TO ENUM NUMBER
-        // ----------------------------------------------
-
-        let commandNumber;
-
-        if (command === "LOCK") {
-
-            commandNumber = 0;
-
-        }
-
-        else if (command === "UNLOCK") {
-
-            commandNumber = 1;
-
-        }
-
-        else if (command === "RESET_IDIOTBOX_WIFI") {
-
-            commandNumber = 2;
-
-        }
-
-        else {
-
-            updateStatus("🔴 Unknown command.");
-            return;
-        }
-
-
-        // ----------------------------------------------
-        // CALL SOLIDITY CONTRACT
-        // ----------------------------------------------
-
-        const transaction =
-            await contract.issueCommand(
-                commandNumber
-            );
-
-
-        console.log(
-            "Blockchain transaction:",
-            transaction.hash
-        );
-
-
-        updateStatus(
-            "⛓️ Waiting for blockchain confirmation..."
-        );
-
-
-        // ----------------------------------------------
-        // WAIT FOR SEPOLIA CONFIRMATION
-        // ----------------------------------------------
-
-        await transaction.wait();
-
-
-        console.log(
-            "Blockchain transaction confirmed."
-        );
-
-
-        // ----------------------------------------------
-        // COMPLETE
-        // ----------------------------------------------
-
-        updateStatus(
-            "✅ " +
-            command +
-            " confirmed on Sepolia"
-        );
-
-    }
-
-    catch (error) {
-
-        console.error(error);
-
-        updateStatus(
-            "❌ Transaction cancelled or failed"
-        );
-    }
-}
-
-</script>
+    </script>
 
 </body>
 </html>
