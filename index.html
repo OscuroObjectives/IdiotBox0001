@@ -22,10 +22,6 @@
             margin-bottom: 30px;
         }
 
-        /* ==============================
-           IDIOTBOX CONTROLLER
-           ============================== */
-
         #controllerBox {
             background: white;
             width: 300px;
@@ -45,15 +41,6 @@
             font-size: 14px;
             color: #666;
         }
-
-        #walletStatus {
-            margin-top: 10px;
-            font-size: 16px;
-        }
-
-        /* ==============================
-           BUTTONS
-           ============================== */
 
         button {
             display: block;
@@ -87,10 +74,6 @@
             cursor: not-allowed;
         }
 
-        /* ==============================
-           STATUS
-           ============================== */
-
         #status {
             margin-top: 30px;
             font-size: 18px;
@@ -111,15 +94,15 @@
         </div>
     </div>
 
-    <button id="lockButton" onclick="authorizeAndSend('LOCK')">
+    <button id="lockButton" onclick="sendLock()">
         LOCK
     </button>
 
-    <button id="unlockButton" onclick="authorizeAndSend('UNLOCK')">
+    <button id="unlockButton" onclick="sendUnlock()">
         UNLOCK
     </button>
 
-    <button id="resetButton" onclick="authorizeAndSend('RESET_IDIOTBOX_WIFI')">
+    <button id="resetButton" onclick="sendReset()">
         RESET_IDIOTBOX_WIFI
     </button>
 
@@ -138,7 +121,9 @@
             "0x4e9B433d69585D55E8765b27FF593a203c6968F2";
 
         const contractABI = [
-            "function issueCommand(uint8 command) public"
+            "function lock() public",
+            "function unlock() public",
+            "function resetIdiotBoxWiFi() public"
         ];
 
 
@@ -152,193 +137,90 @@
 
 
         // ======================================================
-        // SEND BLOCKCHAIN COMMAND
+        // GET CONTRACT
         // ======================================================
 
-        async function authorizeAndSend(command) {
+        async function getContract() {
+
+            if (!window.ethereum) {
+                alert("MetaMask is not installed.");
+                throw new Error("MetaMask is not installed.");
+            }
+
+            updateStatus("🦊 Opening MetaMask...");
+
+            const provider =
+                new ethers.BrowserProvider(window.ethereum);
+
+            await provider.send(
+                "eth_requestAccounts",
+                []
+            );
+
+            const network =
+                await provider.getNetwork();
+
+            if (network.chainId !== 11155111n) {
+
+                updateStatus(
+                    "🔴 Switch MetaMask to Sepolia."
+                );
+
+                alert(
+                    "Please switch MetaMask to the Sepolia Testnet."
+                );
+
+                throw new Error("Wrong network. Switch to Sepolia.");
+            }
+
+            const signer =
+                await provider.getSigner();
+
+            return new ethers.Contract(
+                contractAddress,
+                contractABI,
+                signer
+            );
+        }
+
+
+        // ======================================================
+        // LOCK
+        // ======================================================
+
+        async function sendLock() {
 
             try {
 
-                // ------------------------------------------------
-                // CHECK METAMASK
-                // ------------------------------------------------
-
-                if (!window.ethereum) {
-
-                    updateStatus("❌ MetaMask is not installed.");
-
-                    alert("MetaMask is not installed.");
-
-                    return;
-                }
-
-
-                updateStatus("🦊 Opening MetaMask...");
-
-
-                // ------------------------------------------------
-                // CONNECT TO METAMASK
-                // ------------------------------------------------
-
-                const provider =
-                    new ethers.BrowserProvider(
-                        window.ethereum
-                    );
-
-                await provider.send(
-                    "eth_requestAccounts",
-                    []
-                );
-
-
-                // ------------------------------------------------
-                // CHECK NETWORK
-                // ------------------------------------------------
-
-                const network =
-                    await provider.getNetwork();
-
-                if (network.chainId !== 11155111n) {
-
-                    updateStatus(
-                        "🔴 Switch MetaMask to Sepolia."
-                    );
-
-                    alert(
-                        "Please switch MetaMask to the Sepolia Testnet."
-                    );
-
-                    return;
-                }
-
-
-                // ------------------------------------------------
-                // GET SIGNER
-                // ------------------------------------------------
-
-                const signer =
-                    await provider.getSigner();
-
-
-                // ------------------------------------------------
-                // CREATE CONTRACT
-                // ------------------------------------------------
-
                 const contract =
-                    new ethers.Contract(
-                        contractAddress,
-                        contractABI,
-                        signer
-                    );
-
-
-                // ------------------------------------------------
-                // RESET WARNING
-                // ------------------------------------------------
-
-                if (command === "RESET_IDIOTBOX_WIFI") {
-
-                    const confirmed = confirm(
-                        "RESET_IDIOTBOX_WIFI will erase the ESP32's saved Wi-Fi credentials and restart the IdiotBox.\n\nContinue?"
-                    );
-
-                    if (!confirmed) {
-
-                        updateStatus("Reset cancelled.");
-
-                        return;
-                    }
-                }
-
-
-                // ------------------------------------------------
-                // COMMAND NUMBER
-                // ------------------------------------------------
-
-                let commandNumber;
-
-                if (command === "LOCK") {
-
-                    commandNumber = 0;
-
-                }
-
-                else if (command === "UNLOCK") {
-
-                    commandNumber = 1;
-
-                }
-
-                else if (command === "RESET_IDIOTBOX_WIFI") {
-
-                    commandNumber = 2;
-
-                }
-
-                else {
-
-                    updateStatus("🔴 Unknown command.");
-
-                    return;
-                }
-
-
-                // ------------------------------------------------
-                // SEND TRANSACTION
-                // ------------------------------------------------
+                    await getContract();
 
                 updateStatus(
-                    "🦊 Approve " +
-                    command +
-                    " in MetaMask..."
+                    "🦊 Approve LOCK in MetaMask..."
                 );
 
                 const transaction =
-                    await contract.issueCommand(
-                        commandNumber
-                    );
-
+                    await contract.lock();
 
                 console.log(
-                    "Blockchain transaction:",
+                    "LOCK transaction:",
                     transaction.hash
                 );
-
 
                 updateStatus(
                     "⛓️ Waiting for blockchain confirmation..."
                 );
 
-
-                // ------------------------------------------------
-                // WAIT FOR CONFIRMATION
-                // ------------------------------------------------
-
                 await transaction.wait();
 
-
-                console.log(
-                    "Blockchain transaction confirmed."
-                );
-
-
                 updateStatus(
-                    "✅ " +
-                    command +
-                    " confirmed on Sepolia"
+                    "✅ LOCK confirmed on Sepolia"
                 );
 
-            }
-
-
-            // ======================================================
-            // ERROR HANDLING
-            // ======================================================
-
-            catch (error) {
+            } catch (error) {
 
                 console.error(
-                    "Transaction error:",
+                    "LOCK error:",
                     error
                 );
 
@@ -346,17 +228,125 @@
                     error.code === 4001 ||
                     error.code === "ACTION_REJECTED"
                 ) {
-
-                    updateStatus(
-                        "❌ Transaction cancelled"
-                    );
-
+                    updateStatus("❌ Transaction cancelled");
+                } else {
+                    updateStatus("❌ LOCK transaction failed");
                 }
+            }
+        }
 
-                else {
 
+        // ======================================================
+        // UNLOCK
+        // ======================================================
+
+        async function sendUnlock() {
+
+            try {
+
+                const contract =
+                    await getContract();
+
+                updateStatus(
+                    "🦊 Approve UNLOCK in MetaMask..."
+                );
+
+                const transaction =
+                    await contract.unlock();
+
+                console.log(
+                    "UNLOCK transaction:",
+                    transaction.hash
+                );
+
+                updateStatus(
+                    "⛓️ Waiting for blockchain confirmation..."
+                );
+
+                await transaction.wait();
+
+                updateStatus(
+                    "✅ UNLOCK confirmed on Sepolia"
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "UNLOCK error:",
+                    error
+                );
+
+                if (
+                    error.code === 4001 ||
+                    error.code === "ACTION_REJECTED"
+                ) {
+                    updateStatus("❌ Transaction cancelled");
+                } else {
+                    updateStatus("❌ UNLOCK transaction failed");
+                }
+            }
+        }
+
+
+        // ======================================================
+        // RESET IDIOTBOX WIFI
+        // ======================================================
+
+        async function sendReset() {
+
+            const confirmed = confirm(
+                "RESET_IDIOTBOX_WIFI will erase the ESP32's saved Wi-Fi credentials and restart the IdiotBox.\n\nContinue?"
+            );
+
+            if (!confirmed) {
+
+                updateStatus("Reset cancelled.");
+
+                return;
+            }
+
+            try {
+
+                const contract =
+                    await getContract();
+
+                updateStatus(
+                    "🦊 Approve RESET_IDIOTBOX_WIFI in MetaMask..."
+                );
+
+                const transaction =
+                    await contract.resetIdiotBoxWiFi();
+
+                console.log(
+                    "RESET_IDIOTBOX_WIFI transaction:",
+                    transaction.hash
+                );
+
+                updateStatus(
+                    "⛓️ Waiting for blockchain confirmation..."
+                );
+
+                await transaction.wait();
+
+                updateStatus(
+                    "✅ RESET_IDIOTBOX_WIFI confirmed on Sepolia"
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "RESET_IDIOTBOX_WIFI error:",
+                    error
+                );
+
+                if (
+                    error.code === 4001 ||
+                    error.code === "ACTION_REJECTED"
+                ) {
+                    updateStatus("❌ Transaction cancelled");
+                } else {
                     updateStatus(
-                        "❌ Transaction failed"
+                        "❌ RESET_IDIOTBOX_WIFI transaction failed"
                     );
                 }
             }
