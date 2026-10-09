@@ -109,10 +109,6 @@
         <div id="blockchainLabel">
             Blockchain Command Control
         </div>
-
-        <div id="walletStatus">
-            ⚪ Wallet not connected
-        </div>
     </div>
 
     <button id="lockButton" onclick="authorizeAndSend('LOCK')">
@@ -217,20 +213,11 @@
 
 
                 // ------------------------------------------------
-                // WALLET STATUS
+                // GET SIGNER
                 // ------------------------------------------------
 
                 const signer =
                     await provider.getSigner();
-
-                const walletAddress =
-                    await signer.getAddress();
-
-                document.getElementById("walletStatus").innerText =
-                    "🟢 Wallet connected: " +
-                    walletAddress.substring(0, 6) +
-                    "..." +
-                    walletAddress.substring(walletAddress.length - 4);
 
 
                 // ------------------------------------------------
