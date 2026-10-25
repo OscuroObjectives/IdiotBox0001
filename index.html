@@ -179,20 +179,17 @@
         // ======================================================
 
         const contractAddress =
-            "0x89359Adf80d2c67FDdCcD13d2921BCF0A829Ec46";
+            "0x2Ae68A1959fAc2aD720180572e7BCd672adf3804";
 
         // Monad Mainnet chain ID
         const MONAD_CHAIN_ID = 143n;
 
         const contractABI = [
-            "function lock(string message) public",
-            "function unlock(string message) public",
-            "function resetIdiotBoxWiFi() public",
-
-            "event CommandIssued(uint256 indexed commandId, uint8 command, address indexed issuedBy)",
-
-            "event MessageWritten(uint256 indexed commandId, uint8 command, address indexed issuedBy, string message)"
-        ];
+    "function lock(string message) public",
+    "function unlock(string message) public",
+    "event CommandIssued(uint256 indexed commandId, uint8 command, string commandName, address indexed issuedBy)",
+    "event MessageWritten(uint256 indexed commandId, uint8 command, string commandName, address indexed issuedBy, string message)"
+];
 
 
         // ======================================================
