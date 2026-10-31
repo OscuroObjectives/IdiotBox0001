@@ -466,7 +466,7 @@
         );
         const historyContract = new ethers.Contract(contractAddress, historyABI, historyProvider);
         const HISTORY_LOOKBACK_BLOCKS = 20000;
-        const HISTORY_CHUNK_SIZE = 2000;
+        const HISTORY_CHUNK_SIZE = 100;
         const HISTORY_REFRESH_MS = 12000;
         const MAX_HISTORY_ROWS = 30;
         let historyLastScannedBlock = null;
@@ -565,13 +565,22 @@
                         });
                     }
                     historyLastScannedBlock = toBlock;
+
+                    status.textContent =
+                        "Loading blockchain history... scanned block " +
+                        historyLastScannedBlock.toLocaleString() +
+                        " of " + latestBlock.toLocaleString();
                 }
 
                 renderActivityRows();
                 status.textContent = "Live blockchain history · Updated automatically";
             } catch (error) {
-                console.error("Blockchain activity loading error:", error);
-                status.textContent = "Unable to load activity right now. Retrying automatically...";
+                console.error(
+                    "Blockchain activity loading error. Last scanned block:",
+                    historyLastScannedBlock,
+                    error
+                );
+                status.textContent = "Activity feed temporarily unavailable. Retrying automatically...";
             } finally {
                 historyRefreshRunning = false;
             }
