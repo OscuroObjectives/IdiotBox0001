@@ -455,33 +455,25 @@
 
         // Public, read-only history from the contract's MessageWritten events.
         // No visitor wallet connection is needed to view this table.
-        const HISTORY_RPC_URL = "https://rpc-mainnet.monadinfra.com";
+        // ======================================================
+        // PUBLIC LOCK / UNLOCK HISTORY
+        // Reads indexed events through the existing Render server.
+        // The MonadScan API key remains private on the server.
+        // ======================================================
+
+        const ACTIVITY_API_URL =
+            "https://idiotbox-server.onrender.com/api/box-activity/BOX-0001";
+
         const MONADSCAN_TX_URL = "https://monadscan.com/tx/";
         const MONADSCAN_ADDRESS_URL = "https://monadscan.com/address/";
-        const historyABI = [
-            "event MessageWritten(uint256 indexed commandId, uint8 command, string commandName, address indexed issuedBy, string message)"
-        ];
-        const historyProvider = new ethers.JsonRpcProvider(
-            HISTORY_RPC_URL, { name: "Monad", chainId: 143 }
-        );
-        const historyContract = new ethers.Contract(contractAddress, historyABI, historyProvider);
-        const HISTORY_LOOKBACK_BLOCKS = 20000;
-        const HISTORY_CHUNK_SIZE = 100;
         const HISTORY_REFRESH_MS = 12000;
         const MAX_HISTORY_ROWS = 30;
-        let historyLastScannedBlock = null;
-        let historyRefreshRunning = false;
-        const seenHistoryEvents = new Set();
-        const historyEvents = [];
 
-        function renderActivityRows() {
+        function renderActivityRows(events) {
             const tbody = document.getElementById("activityTableBody");
             tbody.replaceChildren();
-            const sorted = [...historyEvents].sort((a,b) =>
-                b.blockNumber - a.blockNumber || b.index - a.index
-            ).slice(0, MAX_HISTORY_ROWS);
 
-            if (!sorted.length) {
+            if (!events || events.length === 0) {
                 const row = document.createElement("tr");
                 const cell = document.createElement("td");
                 cell.colSpan = 4;
@@ -492,7 +484,7 @@
                 return;
             }
 
-            for (const event of sorted) {
+            for (const event of events.slice(0, MAX_HISTORY_ROWS)) {
                 const row = document.createElement("tr");
 
                 const walletCell = document.createElement("td");
@@ -529,60 +521,30 @@
         }
 
         async function loadBlockchainActivity() {
-            if (historyRefreshRunning) return;
-            historyRefreshRunning = true;
             const status = document.getElementById("activityStatus");
 
             try {
-                const latestBlock = await historyProvider.getBlockNumber();
-                if (historyLastScannedBlock === null) {
-                    historyLastScannedBlock = Math.max(0, latestBlock - HISTORY_LOOKBACK_BLOCKS);
+                const response = await fetch(ACTIVITY_API_URL, {
+                    method: "GET",
+                    cache: "no-store"
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Activity API request failed.");
                 }
 
-                while (historyLastScannedBlock < latestBlock) {
-                    const fromBlock = historyLastScannedBlock + 1;
-                    const toBlock = Math.min(fromBlock + HISTORY_CHUNK_SIZE - 1, latestBlock);
-                    const logs = await historyContract.queryFilter(
-                        historyContract.filters.MessageWritten(), fromBlock, toBlock
-                    );
+                renderActivityRows(data.events || []);
 
-                    for (const log of logs) {
-                        const key = log.transactionHash + ":" + log.index;
-                        if (seenHistoryEvents.has(key)) continue;
-                        seenHistoryEvents.add(key);
+                status.textContent = data.limitedScan
+                    ? "Showing recent activity · Historical scan is limited"
+                    : "Live blockchain history · Updated automatically";
 
-                        const args = log.args;
-                        const commandName = String(args.commandName || "").toUpperCase();
-                        if (commandName !== "LOCK" && commandName !== "UNLOCK") continue;
-
-                        historyEvents.push({
-                            blockNumber: log.blockNumber,
-                            index: log.index,
-                            transactionHash: log.transactionHash,
-                            issuedBy: args.issuedBy,
-                            commandName,
-                            message: args.message || ""
-                        });
-                    }
-                    historyLastScannedBlock = toBlock;
-
-                    status.textContent =
-                        "Loading blockchain history... scanned block " +
-                        historyLastScannedBlock.toLocaleString() +
-                        " of " + latestBlock.toLocaleString();
-                }
-
-                renderActivityRows();
-                status.textContent = "Live blockchain history · Updated automatically";
             } catch (error) {
-                console.error(
-                    "Blockchain activity loading error. Last scanned block:",
-                    historyLastScannedBlock,
-                    error
-                );
-                status.textContent = "Activity feed temporarily unavailable. Retrying automatically...";
-            } finally {
-                historyRefreshRunning = false;
+                console.error("Blockchain activity loading error:", error);
+                status.textContent =
+                    "Unable to load activity right now. Retrying automatically...";
             }
         }
 
